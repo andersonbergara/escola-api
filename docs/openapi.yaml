@@ -1,0 +1,180 @@
+openapi: 3.0.3
+info:
+  title: Escola API
+  version: 1.0.0
+  description: API REST para gestão de escola de cursos (alunos, turmas e matrículas).
+servers:
+  - url: http://localhost:3000
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Erro:
+      type: object
+      properties:
+        erro: { type: string }
+        detalhes:
+          type: array
+          items:
+            type: object
+            properties:
+              campo: { type: string }
+              mensagem: { type: string }
+    Aluno:
+      type: object
+      required: [nome, email]
+      properties:
+        id: { type: integer, readOnly: true }
+        nome: { type: string }
+        email: { type: string, format: email }
+        telefone: { type: string, nullable: true }
+        data_nascimento: { type: string, format: date, nullable: true }
+    Turma:
+      type: object
+      required: [nome, curso, professor, horario, vagas]
+      properties:
+        id: { type: integer, readOnly: true }
+        nome: { type: string }
+        curso: { type: string }
+        professor: { type: string }
+        horario: { type: string }
+        vagas: { type: integer, minimum: 1 }
+        vagas_ocupadas: { type: integer, readOnly: true }
+        vagas_livres: { type: integer, readOnly: true }
+    Matricula:
+      type: object
+      properties:
+        id: { type: integer }
+        aluno_id: { type: integer }
+        turma_id: { type: integer }
+        status: { type: string, enum: [ativa, cancelada] }
+security:
+  - bearerAuth: []
+paths:
+  /saude:
+    get:
+      summary: Verifica se a API e o banco estão no ar
+      security: []
+      responses:
+        '200': { description: OK }
+  /auth/login:
+    post:
+      summary: Autentica e devolve um token JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, senha]
+              properties:
+                email: { type: string }
+                senha: { type: string }
+      responses:
+        '200': { description: Token e dados do usuário }
+        '401': { description: Credenciais incorretas }
+  /auth/registrar:
+    post:
+      summary: Cria um usuário (somente admin)
+      responses:
+        '201': { description: Usuário criado }
+        '403': { description: Sem permissão }
+  /alunos:
+    get:
+      summary: Lista alunos (paginação e busca por nome/e-mail)
+      parameters:
+        - { name: pagina, in: query, schema: { type: integer, default: 1 } }
+        - { name: limite, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+        - { name: busca, in: query, schema: { type: string } }
+      responses:
+        '200': { description: Lista paginada }
+    post:
+      summary: Cadastra um aluno
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Aluno' }
+      responses:
+        '201': { description: Aluno criado }
+        '400': { description: Dados inválidos }
+        '409': { description: E-mail já cadastrado }
+  /alunos/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      summary: Busca um aluno
+      responses:
+        '200': { description: Aluno }
+        '404': { description: Não encontrado }
+    put:
+      summary: Atualiza um aluno
+      responses:
+        '200': { description: Aluno atualizado }
+    delete:
+      summary: Exclui um aluno (somente admin)
+      responses:
+        '204': { description: Excluído }
+        '409': { description: Aluno possui matrículas }
+  /turmas:
+    get:
+      summary: Lista turmas com vagas ocupadas e livres
+      responses:
+        '200': { description: Lista paginada }
+    post:
+      summary: Cria uma turma
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Turma' }
+      responses:
+        '201': { description: Turma criada }
+  /turmas/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      summary: Busca uma turma
+      responses:
+        '200': { description: Turma }
+    put:
+      summary: Atualiza uma turma
+      responses:
+        '200': { description: Turma atualizada }
+    delete:
+      summary: Exclui uma turma (somente admin)
+      responses:
+        '204': { description: Excluída }
+        '409': { description: Turma possui matrículas }
+  /matriculas:
+    get:
+      summary: Lista matrículas (filtros aluno_id, turma_id e status)
+      responses:
+        '200': { description: Lista paginada }
+    post:
+      summary: Matricula um aluno em uma turma
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [aluno_id, turma_id]
+              properties:
+                aluno_id: { type: integer }
+                turma_id: { type: integer }
+      responses:
+        '201': { description: Matrícula criada }
+        '404': { description: Aluno ou turma inexistente }
+        '409': { description: Turma lotada ou aluno já matriculado }
+  /matriculas/{id}/cancelar:
+    patch:
+      summary: Cancela uma matrícula e libera a vaga
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Matrícula cancelada }

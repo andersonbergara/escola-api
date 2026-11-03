@@ -9,6 +9,9 @@ export function tratarErros(err, _req, res, _next) {
   if (err instanceof AppError) {
     return res.status(err.status).json({ erro: err.message, detalhes: err.details });
   }
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ erro: 'Corpo da requisição grande demais.' });
+  }
   if (err.type === 'entity.parse.failed') {
     return res.status(400).json({ erro: 'JSON inválido no corpo da requisição.' });
   }

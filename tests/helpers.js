@@ -10,11 +10,11 @@ const { pool } = await import('../src/db.js');
 const schema = await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8');
 
 /** Sobe a API em uma porta livre e devolve um cliente HTTP simples. */
-export async function iniciarApi() {
+export async function iniciarApi(opcoes = {}) {
   await pool.query(schema);
   await pool.query('TRUNCATE matriculas, turmas, alunos, usuarios RESTART IDENTITY CASCADE');
 
-  const server = createApp().listen(0);
+  const server = createApp(opcoes).listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
 
@@ -46,5 +46,5 @@ export async function iniciarApi() {
     await pool.end();
   }
 
-  return { req, criarUsuario, encerrar };
+  return { base, req, criarUsuario, encerrar };
 }
